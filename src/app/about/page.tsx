@@ -77,7 +77,7 @@ export default function About() {
             <p>
             As a Software Engineer, I worked in different roles throughout my career, starting as a Test Engineer, and then playing the roles of Scrum Master, Product Owner, Devops Engineer and Full Stack Engineer.
 
-            Having taken up all this roles, I really enjoy working on Backend especially using Java and Spring Boot. That's why I started this blog and a Youtube Channel - ProgrammingTechie, to teach others what I learned and am learning.
+            Having taken up all this roles, I really enjoy working on Backend especially using Java and Spring Boot. Thats why I started this blog and a Youtube Channel - ProgrammingTechie, to teach others what I learned and am learning.
             </p>
             <p>
               In my leisure time, I like to read books and go for long walks. I am also a stock market enthusiast, whenever I find free time, I try to combine both of my passions - Software Engineering and Stock Markets, to build some tools and utilities to help me in my investment journey.
