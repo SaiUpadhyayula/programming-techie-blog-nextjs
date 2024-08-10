@@ -1,0 +1,164 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import dockerForJavaDev1 from './docker-for-java-devs-1.png'
+import itWorked from './it-worked-on-my-machine.png'
+import dockerVsVM from './docker-vs-virtualmachine.png'
+import verifyDockerVersion from './verify-docker-version.png'
+
+export const article = {
+  author: 'Sai Upadhyayula',
+  date: '2024-08-04',
+  title: 'Docker for Java Developers - Handbook',
+  description:
+    'In this article- Docker for Java Developers - Handbook, you will learn how to work with Docker as a Java Developer',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+In this article- Docker for Java Developers - Handbook, you will learn how to work with Docker as a Java Developer
+
+We will learn how to run Java applications developed especially using Spring Boot on Docker. A basic understanding of Spring Boot Framework is required to get the most out of this tutorial, but the majority of the tutorial should also be relevant to applications developed using other Java frameworks like Micronaut, Quarkus, etc.
+
+You will learn the basics of Docker and then also learn how to package, build, and ship your applications using Docker.
+
+## Introduction to Docker
+
+Docker is an open-source, lightweight platform that helps us to package, deploy, and run applications easily. We can package our applications in the form of an "image", and then build this "image" and run it as a "container". You will learn about these terms shortly.
+
+As this tutorial is for Java Developers specifically, we will take some examples from Java world to explain the concepts of Docker.
+
+Java is created to build applications that follow the principle of Write Once and Run Anywhere (WORA), that means once you write your Java application, you can then package it into a JAR file and then run this file on any machine where a Java Runtime Environment (JRE) is installed.
+
+Similarly, Docker also follows the principle of Package Once and Deploy Anywhere (PODA). I don't know if this is an official abbreviation, but I learned it from Arun Gupta long back. Basically, you can package and ship your application as a Docker Image and run that as a Docker Container.
+
+### What is an Image ?
+
+A Docker Image can be defined as a template that contains a set of instructions on how to run an application. In Java terminology, you can treat it similar to a class. A class can be defined as a template (or) a blueprint where all the necessary information about the object is contained like properties, methods, etc.
+
+You can create Docker images from some special kind of file called a Dockerfile, which contains all the necessary information and instructions to create the image.
+
+### What is a Container ?
+
+A Docker Container is a runtime instance of an image and an executable package that is created from an image. Again if you relate it to Java you can treat the container as a Java Object, which is nothing but a runtime instance of a class.
+
+A Container has its own isolated environment with all necessary dependencies and configurations to run an application.
+
+Let us understand this with an example, if you want to run a Java web application developed for example using Spring Boot, then you usually need the following:
+
+- An Operating System
+- Java Development Kit (JDK)
+- Application Code
+
+By creating a container that contains all the above-mentioned dependencies, we can create the JAR file by running the relevant command and run our application, whenever we execute that container.
+
+So basically a docker image describes something like the below in a Dockerfile which is nothing but a text file that contains some instructions like:
+
+- Download an Operating System
+
+- Download a Java Development Environment
+
+- Add the necessary application code
+
+- Run the Maven build against the application code.
+
+- Run the generated JAR file -> this is what the container generally does when it's executed.
+
+We will see what this Dockerfile actually looks like in the upcoming sections. See the below image for reference.
+
+<Image src={dockerForJavaDev1} alt="Docker Container Example" />
+
+### Why use Docker ?
+
+One of the main advantages of using Docker is, it helps a lot while setting up the Development Environment.
+
+If you have a new developer on the team, usually he/she needs to spend some time during onboarding, like downloading necessary software like JDK, Databases, Message Queues, etc. Using docker we can easily onboard new developers by providing the details of the docker image and they can easily download and run this image as a container.
+
+This allows us to minimize the version mismatch and conflicts in the software used during development.
+
+**Example**: **Developer A** can have **MySQL 5** installed on their Machine, whereas **Developer B** can have **MySQL 8**. This can cause conflicts down the line as Developer B who is using a newer version of the database can develop a feature using the shiny new features introduced on MySQL 8 and this feature may not work on the machine of Developer A, which causes the age-old issue:
+
+<Image src={itWorked} alt="Meme" />
+
+Docker helps us avoid this issue and provides consistency. It not only provides consistency between Developer machines but also between different environments like Prod, Dev, and Test.
+
+### Docker vs Virtual Machine
+
+Now you may be wondering what is the difference between Docker and a Virtual Machine.
+
+A Virtual Machine is a program that can run a different operating system and has its own hypervisor which allows different operating systems to share the same underlying hardware. The Virtual Machine usually runs on top of the Host Operating System.
+
+Docker on the other hand, also runs on top of the Host Operating System but does not come with its own Hypervisor, as mentioned previously, it is lightweight and only comes with a Docker Engine where it can start and stop different Operating Systems.
+
+<Image src={dockerVsVM} alt="Docker vs Virtual Machine" />
+
+| Virtual Machine                                                                              | Docker                                     |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Has a dedicated Hypervisor on top of Host Operating System to run the Guest Operating System | Uses containers to virtualize applications |
+| Large in Size                                                                                | Small in size                              |
+| Slow to start up                                                                             | Fast to start up                           |
+
+### Installing Docker
+
+You can refer to the official documentation on how to install Docker: https://docs.docker.com/engine/install/
+
+We are mainly interested in installing the Docker Desktop variant. Just download the executable, run it, and follow the installation instructions.
+
+After the installation is completed, you can type the following command to verify if the installation is successful or not. You should see the version number you have installed. I have the Docker version 20.10.14 installed on my machine, you can have a much latest version installed.
+
+<Image src={verifyDockerVersion} alt="Verify Docker Version" />
+
+```c
+exbibyte_wins = gigahertz(3);
+grayscaleUtilityClient = control_uat;
+pcmciaHibernate = oop_virus_console(text_mountain);
+if (stateWaisFirewire >= -2) {
+    jfs = 647065 / ldapVrml(tutorialRestore, 85);
+    metal_runtime_parse = roomComputingResolution - toolbarUpload +
+            ipx_nvram_open;
+} else {
+    maximizeSidebar *= suffix_url(flatbed + 2, requirements_encoding_node +
+            only_qbe_media, minicomputer);
+}
+```
+
+Aere repetiti cognataque natus. Habebat vela solutis saepe munus nondum adhuc
+oscula nomina pignora corpus deserat.
+
+## Lethaei Pindumve me quae dinumerat Pavor
+
+Idem se saxa fata pollentibus geminos; quos pedibus. Est urnis Herses omnes nec
+divite: et ille illa furit sim verbis Cyllenius.
+
+1. Captus inpleverunt collo
+2. Nec nam placebant
+3. Siquos vulgus
+4. Dictis carissime fugae
+5. A tacitos nulla viginti
+
+Ungues fistula annoso, ille addit linoque motatque uberior verso
+[rubuerunt](#) confine desuetaque. _Sanguine_ anteit
+emerguntque expugnacior est pennas iniqui ecce **haeret** genus: peiora imagine
+fossas Cephisos formosa! Refugitque amata [refelli](#)
+supplex. Summa brevis vetuere tenebas, hostes vetantis, suppressit, arreptum
+regna. Postquam conpescit iuvenis habet corpus, et erratica, perdere, tot mota
+ars talis.
+
+```c
+digital.webcam_dual_frequency = webmasterMms;
+if (5 + language_standalone_google) {
+    cc_inbox_layout *= file_character;
+    task += p;
+    lockUnicode += enterprise_monochrome(tokenFunctionPersonal, keyVirtual,
+            adf);
+}
+windows_binary_esports(87734, array(restoreRomTopology, adRaw(407314),
+        dongleBashThumbnail), interpreter);
+```
+
+Sit volat naturam; motu Cancri. Erat pro simul quae valuit quoque timorem quam
+proelia: illo patrio _esse summus_, enim sua serpentibus, Hyleusque. Est coniuge
+recuso; refert Coroniden ignotos manat, adfectu.

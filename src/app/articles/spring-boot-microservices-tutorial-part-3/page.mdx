@@ -1,0 +1,623 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const article = {
+  author: 'Sai Upadhyayula',
+  date: '2024-04-14',
+  title: 'Spring Boot Microservices Tutorial - Part 3',
+  description:
+    'In this Spring Boot Microservices Tutorial series, you will learn how to develop applications with Microservices Architecture using Spring Boot and Spring Cloud and deploy them using Docker and Kubernetes.',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+In Part 2 of this **Spring Boot Microservices Tutorial** series, we will implement Synchronous Communication between our Order Service and Inventory Service using Spring Cloud OpenFeign Library.
+
+Spring Cloud OpenFeign library uses that provides OpenFeign integrations with Spring Boot and Spring Cloud. It provides a declarative REST Client that makes consuming REST Endpoints in our code easy.
+
+![Inter Process Communication](images/image-3.png)
+
+We will implement Synchronous Communication between Order Service and Inventory Service using the [Spring Cloud OpenFeign](https://spring.io/projects/spring-cloud-openfeign) library.
+
+## Add Spring Cloud OpenFeign to Order Service
+
+To get started, let's add the Spring Cloud OpenFeign Starter to the pom.xml file of the Order Service.
+
+**pom.xml**
+
+```
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+```
+
+We also need to add the spring-cloud-dependencies bom dependency to the `<dependencyManagement>` section in the pom.xml file.
+
+```
+<dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+```
+
+This is how your pom.xml should look like at the end:
+
+**pom.xml**
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>microservices-new</artifactId>
+        <groupId>com.programming.techie</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>order-service</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.3.2</version>
+        </dependency>
+    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
+
+```
+
+## Create FeignClient for Inventory Service
+
+As we will be calling Inventory Service from Order Service, we need to create a class called InventoryClient.java inside the client package inside the order-service.
+
+**client/InventoryClient.java**
+
+```
+package com.programmingtechie.orderservice.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@FeignClient(value = "inventory", url = "${inventory.url}")
+public interface InventoryClient {
+    @RequestMapping(method = RequestMethod.GET, value = "/api/inventory")
+    boolean isInStock(@RequestParam String skuCode, @RequestParam Integer quantity);
+}
+
+```
+
+Notice that the @FeignClient annotation has an attribute called URL that is pointing to the inventory.url property in the application.properties file
+
+```
+inventory.url=http://localhost:8082
+```
+
+By externalizing this property we can replace it dynamically in tests or during startup time.
+
+Coming to the method, we have the @RequestMapping annotation that is calling the path - /api/inventory.
+
+Now we have to call the **isInStock()** method from the placeOrder() method of the Order Service.
+
+If the client returns true, then we will place the order and save it to the database successfully, or else, we will throw a Runtime Exception
+
+Here's how the OrderService class looks like with the final logic.
+
+**OrderService.java**
+
+```
+package com.programmingtechie.orderservice.service;
+
+import com.programmingtechie.orderservice.client.InventoryClient;
+import com.programmingtechie.orderservice.dto.OrderRequest;
+import com.programmingtechie.orderservice.model.Order;
+import com.programmingtechie.orderservice.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final InventoryClient inventoryClient;
+
+    public void placeOrder(OrderRequest orderRequest) {
+        boolean inStock = inventoryClient.isInStock(orderRequest.skuCode(), orderRequest.quantity());
+        if (inStock) {
+            var order = mapToOrder(orderRequest);
+            orderRepository.save(order);
+        } else {
+            throw new RuntimeException("Product with Skucode " + orderRequest.skuCode() + "is not in stock");
+        }
+    }
+
+    private static Order mapToOrder(OrderRequest orderRequest) {
+        Order order = new Order();
+        order.setOrderNumber(UUID.randomUUID().toString());
+        order.setPrice(orderRequest.price());
+        order.setQuantity(orderRequest.quantity());
+        order.setSkuCode(orderRequest.skuCode());
+        return order;
+    }
+}
+
+```
+
+Before we go ahead and test our implementation, we have to add the @EnableFeignClients annotation to enable Feign Client Capabilities
+
+**OrderServiceApplication.java**
+
+```
+package com.programmingtechie.orderservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+public class OrderServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(OrderServiceApplication.class, args);
+    }
+
+}
+
+```
+
+## Manual Testing using Postman
+
+Now it's time to test our implementation using Postman, make sure you start both the Order Service as well as the Inventory Service and call the Place Order Endpoint of Order Service.
+
+Let's order the skuCode iphone_15, with a quantity of 100, as in Part -1 we initialized all skuCodes with quantity 100, this product should be in stock, and our Order should go through.
+
+![Submit Order with OpenFeign](images/image-4.png)
+
+Now let's change the quantity to 101, and this time our Order call should fail with a 500 error.
+
+![Order Service negative case](images/image-5.png)
+
+If you observe logs, then you should see the below exception message:
+
+```
+java.lang.RuntimeException: Product with Skucode iphone_15is not in stock
+```
+
+## Updating the Integration Tests
+
+Now if you run our Integration Tests in the order service, you will notice that they no longer run successfully as we are calling the Inventory Service.
+
+To make these test successful, we have to use a library called Wiremock that provides a mock server environment to test our Order Service by making some mock HTTP calls.
+
+By using Wiremock, we can verify if our Order Service is calling the inventory service with correct URL Params/Request Body/ Path Variables or not. We can also stub the response and test how our service is responding for various scenarios.
+
+To enable wiremock, we need to add the following dependency to our pom.xml file of Order Service
+
+**pom.xml**
+
+```
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-stub-runner</artifactId>
+            <scope>test</scope>
+        </dependency>
+```
+
+Here's how the update Integration Test looks like:
+
+**OrderServiceApplicationTests.java**
+
+```
+package com.programmingtechie.orderservice;
+
+import com.programmingtechie.orderservice.stub.InventoryStubs;
+import io.restassured.RestAssured;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.testcontainers.containers.MySQLContainer;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWireMock(port = 0)
+class OrderServiceApplicationTests {
+
+    @ServiceConnection
+    static MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.3.0");
+    @LocalServerPort
+    private Integer port;
+
+    @BeforeEach
+    void setup() {
+        RestAssured.baseURI = "http://localhost";
+        RestAssured.port = port;
+    }
+
+    static {
+        mySQLContainer.start();
+    }
+
+    @Test
+    void shouldSubmitOrder() {
+        String submitOrderJson = """
+                {
+                     "skuCode": "iphone_15",
+                     "price": 1000,
+                     "quantity": 1
+                }
+                """;
+
+        InventoryStubs.stubInventoryCall("iphone_15", 1);
+        var responseBodyString = RestAssured.given()
+                .contentType("application/json")
+                .body(submitOrderJson)
+                .when()
+                .post("/api/order")
+                .then()
+                .log().all()
+                .statusCode(201)
+                .extract()
+                .body().asString();
+
+        assertThat(responseBodyString, Matchers.is("Order Placed Successfully"));
+    }
+}
+In Part 3 of this **Spring Boot Microservices Tutorial** series, we will implement the API Gateway pattern using the Spring Cloud Gateway MVC library.
+
+## What is an API Gateway?
+
+An API Gateway also called an Edge Server, acts as an entry point for our microservices, so that external clients can access the services easily. It also helps us to handle cross-cutting concerns like Monitoring, Security, etc. In some instances, API Gateway also acts as Load Balancers.
+
+## Why to use API Gateway?
+
+In our microservice project landscape, we have 3 services accessible to the user:
+
+- Product Service
+
+- Order Service
+
+- Inventory service
+
+For example, imagine that external clients like Web and Mobile applications consume these three independent services through the exposed endpoints. If the internal implementation of these services changes, then also the clients need to update the Endpoints on their side.
+
+To workaround this issue, we use an API Gateway as the facade that provides an abstraction over the internal microservices.
+
+## Spring Cloud Gateway MVC
+
+**Spring Cloud Gateway MVC** is a library under the Spring Cloud project, that provides the API Gateway functionality. Let's go ahead and create the API Gateway for our project, as usual, we use the start.spring.io website to create the project.
+
+![Start.spring.io for creating Spring Cloud Gateway](images/image-6-1024x663.png)
+
+Make sure you use the above configuration and click on Generate Project to download the source code to your machine.
+
+As we learned before, an API Gateway acts as an abstraction over the microservices, and it forwards the request from the client to the relevant microservices.
+
+To implement this feature, Spring Cloud Gateway uses the below building blocks:
+
+- Routes
+
+- Predicates
+
+- Filters
+
+### Routes
+
+A Route is the basic building block of the gateway, it can be defined using a uniqueId, a destination URI, and a collection of predicates and filters
+
+### Predicates
+
+A Predicate is nothing but a criteria or a condition that you define to match against the incoming HTTP Request, for example, you can create a routing rule where you want to route the requests that have a specific Header and Request Parameter to Service A, then you can consider the headers and request parameters you want to match against the request as predicates.
+
+### Filters
+
+Filters are components that allow you to modify the requests and responses before they are sent to the destination.
+
+Let's see how we can implement the API Gateway in our project using Spring Cloud Gateway MVC.
+
+```
+
+Note that we will be using Spring Cloud Gateway MVC, but not Spring Cloud Gateway which is based on reactive stack backed by Spring Webflux.
+
+````
+
+Here are the routing rules we will implement:
+
+- If a request matches the path - /api/product, then forward it to Product Service
+
+- If a request matches the path - /api/order, then forward it to Order Service
+
+- If a request matches the path - /api/inventory, then forward it to Inventory Service
+
+## Coding
+
+Let's start developing our API Gateway, once you open the project downloaded from start.spring.io, you should see the below **pom.xml** file
+
+**pom.xml**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.2.4</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.programming.techie</groupId>
+	<artifactId>api-gateway</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>api-gateway</name>
+	<description>Demo project for Spring Boot</description>
+	<properties>
+		<java.version>21</java.version>
+		<spring-cloud.version>2023.0.1</spring-cloud.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-gateway-mvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+    <build>
+    	<plugins>
+    		<plugin>
+    			<groupId>org.springframework.boot</groupId>
+    			<artifactId>spring-boot-maven-plugin</artifactId>
+    		</plugin>
+    	</plugins>
+    </build>
+
+</project>
+
+````
+
+And the main Spring Boot application class, **ApiGatewayApplication.java**
+
+```
+
+package com.programming.techie;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ApiGatewayApplication {
+
+    public static void main(String[] args) {
+    	SpringApplication.run(ApiGatewayApplication.class, args);
+    }
+
+}
+
+```
+
+Now it's time to create the routing rules defined above, for that we can follow 2 approaches
+
+- Using Java API
+
+- Using Property files
+
+We will go with the approach of using Java API in this tutorial, for that let's create a class called Routes.java
+
+**Routes.java**
+
+```
+
+package com.programming.techie.routes;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.function.RequestPredicates;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.ServerResponse;
+
+import java.net.URI;
+
+import static org.springframework.cloud.gateway.server.mvc.filter.CircuitBreakerFilterFunctions.circuitBreaker;
+import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
+import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
+
+@Configuration(proxyBeanMethods = false)
+public class Routes {
+@Bean
+public RouterFunction<ServerResponse> productServiceRoute() {
+return route("product_service")
+.route(RequestPredicates.path("/api/product"), http("http://localhost:8080"))
+.build();
+}
+}
+
+```
+
+The above code defines a route to the product service, the **route()** method takes in two arguments one for the path which is the predicate we want to match in this case (/api/product), and the second argument is `http("<target-destination-url>")` which points to the target destination ie. product service that is running at http://localhost:8080.
+
+We will see how to use Filters in the upcoming section when we implement Circuit Breakers for resiliency.
+
+Let's add also the remaining routes for the order service and inventory service
+
+```
+
+package com.programming.techie.routes;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.servlet.function.RequestPredicates;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.ServerResponse;
+
+import java.net.URI;
+
+import static org.springframework.cloud.gateway.server.mvc.filter.CircuitBreakerFilterFunctions.circuitBreaker;
+import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
+import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
+
+@Configuration(proxyBeanMethods = false)
+public class Routes {
+@Bean
+public RouterFunction<ServerResponse> productServiceRoute() {
+return route("product_service")
+.route(RequestPredicates.path("/api/product"), http("http://localhost:8080"))
+.build();
+}
+
+    @Bean
+    public RouterFunction<ServerResponse> orderServiceRoute() {
+        return route("order_service")
+                .route(RequestPredicates.path("/api/order"), http("http://localhost:8081"))
+                .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> inventoryServiceRoute() {
+        return route("inventory_service")
+                .route(RequestPredicates.path("/api/inventory"), http("http://localhost:8082"))
+                .build();
+    }
+
+}
+
+```
+
+You can observe that the other routes have very similar code, but the only differences are obvious, with the path being /api/order, routed to the Order Service, and the path /api/inventory to the Inventory Service.
+
+Finally, let's add a property in the application.properties file to make sure that the api-gateway service runs on port 9000 as 8080 is already taken by the product service.
+
+```
+
+server.port=9000
+
+```
+
+Now if you make an HTTP GET request to the URL:
+
+http://localhost:9000/api/product then you should see the below response
+
+```json
+[
+  {
+    "id": "661b5c40ad645e4a98d0f623",
+    "name": "iPhone 15",
+    "description": "iPhone 15 is a smartphone from Apple",
+    "price": 1000
+  }
+]
+```
+
+That's it for this part, in the next part we will discuss how to implement security in our project by integrating OAuth2 using Keycloak.

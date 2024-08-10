@@ -1,0 +1,387 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const article = {
+  author: 'Sai Upadhyayula',
+  date: '2024-04-03',
+  title: 'Spring Boot Microservices Tutorial - Part 2',
+  description:
+    'In this Spring Boot Microservices Tutorial series, you will learn how to develop applications with Microservices Architecture using Spring Boot and Spring Cloud and deploy them using Docker and Kubernetes.',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+In Part 2 of this **Spring Boot Microservices Tutorial** series, we will implement Synchronous Communication between our Order Service and Inventory Service using Spring Cloud OpenFeign Library.
+
+Spring Cloud OpenFeign library uses that provides OpenFeign integrations with Spring Boot and Spring Cloud. It provides a declarative REST Client that makes consuming REST Endpoints in our code easy.
+
+![Inter Process Communication](images/image-3.png)
+
+We will implement Synchronous Communication between Order Service and Inventory Service using the [Spring Cloud OpenFeign](https://spring.io/projects/spring-cloud-openfeign) library.
+
+## Add Spring Cloud OpenFeign to Order Service
+
+To get started, let's add the Spring Cloud OpenFeign Starter to the pom.xml file of the Order Service.
+
+**pom.xml**
+
+```
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+```
+
+We also need to add the spring-cloud-dependencies bom dependency to the `<dependencyManagement>` section in the pom.xml file.
+
+```
+<dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+```
+
+This is how your pom.xml should look like at the end:
+
+**pom.xml**
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>microservices-new</artifactId>
+        <groupId>com.programming.techie</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>order-service</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.3.2</version>
+        </dependency>
+    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
+
+```
+
+## Create FeignClient for Inventory Service
+
+As we will be calling Inventory Service from Order Service, we need to create a class called InventoryClient.java inside the client package inside the order-service.
+
+**client/InventoryClient.java**
+
+```
+package com.programmingtechie.orderservice.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@FeignClient(value = "inventory", url = "${inventory.url}")
+public interface InventoryClient {
+    @RequestMapping(method = RequestMethod.GET, value = "/api/inventory")
+    boolean isInStock(@RequestParam String skuCode, @RequestParam Integer quantity);
+}
+
+```
+
+Notice that the @FeignClient annotation has an attribute called URL that is pointing to the inventory.url property in the application.properties file
+
+```
+inventory.url=http://localhost:8082
+```
+
+By externalizing this property we can replace it dynamically in tests or during startup time.
+
+Coming to the method, we have the @RequestMapping annotation that is calling the path - /api/inventory.
+
+Now we have to call the **isInStock()** method from the placeOrder() method of the Order Service.
+
+If the client returns true, then we will place the order and save it to the database successfully, or else, we will throw a Runtime Exception
+
+Here's how the OrderService class looks like with the final logic.
+
+**OrderService.java**
+
+```
+package com.programmingtechie.orderservice.service;
+
+import com.programmingtechie.orderservice.client.InventoryClient;
+import com.programmingtechie.orderservice.dto.OrderRequest;
+import com.programmingtechie.orderservice.model.Order;
+import com.programmingtechie.orderservice.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final InventoryClient inventoryClient;
+
+    public void placeOrder(OrderRequest orderRequest) {
+        boolean inStock = inventoryClient.isInStock(orderRequest.skuCode(), orderRequest.quantity());
+        if (inStock) {
+            var order = mapToOrder(orderRequest);
+            orderRepository.save(order);
+        } else {
+            throw new RuntimeException("Product with Skucode " + orderRequest.skuCode() + "is not in stock");
+        }
+    }
+
+    private static Order mapToOrder(OrderRequest orderRequest) {
+        Order order = new Order();
+        order.setOrderNumber(UUID.randomUUID().toString());
+        order.setPrice(orderRequest.price());
+        order.setQuantity(orderRequest.quantity());
+        order.setSkuCode(orderRequest.skuCode());
+        return order;
+    }
+}
+
+```
+
+Before we go ahead and test our implementation, we have to add the @EnableFeignClients annotation to enable Feign Client Capabilities
+
+**OrderServiceApplication.java**
+
+```
+package com.programmingtechie.orderservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+public class OrderServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(OrderServiceApplication.class, args);
+    }
+
+}
+
+```
+
+## Manual Testing using Postman
+
+Now it's time to test our implementation using Postman, make sure you start both the Order Service as well as the Inventory Service and call the Place Order Endpoint of Order Service.
+
+Let's order the skuCode iphone_15, with a quantity of 100, as in Part -1 we initialized all skuCodes with quantity 100, this product should be in stock, and our Order should go through.
+
+![Submit Order with OpenFeign](images/image-4.png)
+
+Now let's change the quantity to 101, and this time our Order call should fail with a 500 error.
+
+![Order Service negative case](images/image-5.png)
+
+If you observe logs, then you should see the below exception message:
+
+```
+java.lang.RuntimeException: Product with Skucode iphone_15is not in stock
+```
+
+## Updating the Integration Tests
+
+Now if you run our Integration Tests in the order service, you will notice that they no longer run successfully as we are calling the Inventory Service.
+
+To make these test successful, we have to use a library called Wiremock that provides a mock server environment to test our Order Service by making some mock HTTP calls.
+
+By using Wiremock, we can verify if our Order Service is calling the inventory service with correct URL Params/Request Body/ Path Variables or not. We can also stub the response and test how our service is responding for various scenarios.
+
+To enable wiremock, we need to add the following dependency to our pom.xml file of Order Service
+
+**pom.xml**
+
+```
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-stub-runner</artifactId>
+            <scope>test</scope>
+        </dependency>
+```
+
+Here's how the update Integration Test looks like:
+
+**OrderServiceApplicationTests.java**
+
+```
+package com.programmingtechie.orderservice;
+
+import com.programmingtechie.orderservice.stub.InventoryStubs;
+import io.restassured.RestAssured;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.testcontainers.containers.MySQLContainer;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWireMock(port = 0)
+class OrderServiceApplicationTests {
+
+    @ServiceConnection
+    static MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.3.0");
+    @LocalServerPort
+    private Integer port;
+
+    @BeforeEach
+    void setup() {
+        RestAssured.baseURI = "http://localhost";
+        RestAssured.port = port;
+    }
+
+    static {
+        mySQLContainer.start();
+    }
+
+    @Test
+    void shouldSubmitOrder() {
+        String submitOrderJson = """
+                {
+                     "skuCode": "iphone_15",
+                     "price": 1000,
+                     "quantity": 1
+                }
+                """;
+
+        InventoryStubs.stubInventoryCall("iphone_15", 1);
+        var responseBodyString = RestAssured.given()
+                .contentType("application/json")
+                .body(submitOrderJson)
+                .when()
+                .post("/api/order")
+                .then()
+                .log().all()
+                .statusCode(201)
+                .extract()
+                .body().asString();
+
+        assertThat(responseBodyString, Matchers.is("Order Placed Successfully"));
+    }
+}
+
+```
+
+**application.properties**
+
+```
+inventory.url=http://localhost:${wiremock.server.port}
+```
+
+**InventoryStubs.java**
+
+```
+package com.programmingtechie.orderservice.stub;
+
+import lombok.experimental.UtilityClass;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+
+@UtilityClass
+public class InventoryStubs {
+
+    public void stubInventoryCall(String skuCode, Integer quantity) {
+        stubFor(get(urlEqualTo("/api/inventory?skuCode=" + skuCode + "&quantity=" + quantity))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("true")));
+    }
+}
+
+```
+
+## Conclusion
+
+That's it for Part -2 of this tutorial, in the next part we will learn how to implement Service Discovery using Netflix Eureka.
